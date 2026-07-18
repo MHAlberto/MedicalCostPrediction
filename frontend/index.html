@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MediCare Plus - Predicción de Costos Médicos</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            medic: { 50: '#f0fdf4', 100: '#dcfce7', 200: '#bbf7d0', 300: '#86efac', 400: '#4ade80', 500: '#22c55e', 600: '#16a34a', 700: '#15803d', 800: '#166534', 900: '#14532d' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .bg-medical { background: linear-gradient(135deg, #0f766e 0%, #0d9488 50%, #14b8a6 100%); }
+    .bg-medical-dark { background: linear-gradient(135deg, #0d3b3a 0%, #0f766e 100%); }
+    .hover-lift { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .hover-lift:hover { transform: translateY(-1px); box-shadow: 0 8px 25px -5px rgba(0,0,0,0.1); }
+    #invoiceContent { display: none; }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen font-sans antialiased">
+  <header class="bg-medical text-white shadow-lg">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center text-white text-xl shadow-inner">
+            <i class="fas fa-heart-pulse"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight">MediCare Plus</h1>
+            <p class="text-xs text-teal-100 -mt-0.5">Aseguradora de Salud</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-4">
+          <span class="hidden sm:flex items-center gap-1.5 text-sm text-teal-100">
+            <i class="fas fa-microchip"></i> ML Predictor
+          </span>
+          <span class="flex items-center gap-1.5 px-3 py-1 bg-white/15 backdrop-blur-sm rounded-full text-xs font-medium">
+            <span class="w-1.5 h-1.5 bg-green-300 rounded-full animate-pulse"></span>
+            Online
+          </span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+      <div class="lg:col-span-3">
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover-lift">
+          <div class="border-b border-slate-100 px-6 py-4 flex items-center justify-between bg-slate-50/50">
+            <div>
+              <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+                <i class="fas fa-notes-medical text-teal-600"></i>
+                Datos del Paciente
+              </h2>
+              <p class="text-sm text-slate-500 ml-7">Complete el perfil del asegurado</p>
+            </div>
+            <button id="resetBtn" type="button" class="text-sm text-slate-400 hover:text-teal-600 transition-colors">
+              <i class="fas fa-rotate-left mr-1"></i> Limpiar
+            </button>
+          </div>
+
+          <form id="predictionForm" class="p-6 space-y-5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Edad</label>
+                <div class="relative">
+                  <i class="fas fa-calendar absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                  <input type="number" id="age" min="18" max="80" value="35" required
+                         class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm transition-shadow">
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Sexo</label>
+                <div class="relative">
+                  <i class="fas fa-venus-mars absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                  <select id="sex" required
+                          class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm appearance-none">
+                    <option value="female">Femenino</option>
+                    <option value="male" selected>Masculino</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">IMC (BMI)</label>
+                <div class="relative">
+                  <i class="fas fa-weight absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                  <input type="number" id="bmi" step="0.1" min="10" max="60" value="28.5" required
+                         class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm transition-shadow">
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Dependientes</label>
+                <div class="relative">
+                  <i class="fas fa-users absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                  <input type="number" id="children" min="0" max="10" value="0" required
+                         class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm transition-shadow">
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Fumador</label>
+                <div class="relative">
+                  <i class="fas fa-smoking absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                  <select id="smoker" required
+                          class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm appearance-none">
+                    <option value="no">No</option>
+                    <option value="yes">Sí</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-slate-700 mb-1.5">Región</label>
+                <div class="relative">
+                  <i class="fas fa-location-dot absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                  <select id="region" required
+                          class="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:border-teal-500 text-sm appearance-none">
+                    <option value="southwest">Southwest</option>
+                    <option value="southeast">Southeast</option>
+                    <option value="northwest">Northwest</option>
+                    <option value="northeast">Northeast</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+              <i class="fas fa-calculator"></i> Estimar Costo Médico
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <div class="lg:col-span-2 space-y-6">
+        <div id="resultCard" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hidden hover-lift">
+          <div class="bg-medical px-6 py-5">
+            <p class="text-teal-100 text-xs uppercase tracking-wider font-medium flex items-center gap-1.5">
+              <i class="fas fa-chart-line"></i> Resultado de la Predicción
+            </p>
+            <p id="predictedAmount" class="text-white text-4xl font-bold mt-1.5 tracking-tight">$0.00</p>
+            <p class="text-teal-200 text-sm mt-0.5">Costo médico anual estimado</p>
+          </div>
+          <div class="px-6 py-4 space-y-3">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-slate-500 flex items-center gap-1.5"><i class="fas fa-shield-alt text-slate-400"></i> Nivel de Riesgo</span>
+              <span id="riskBadge" class="px-3 py-1 rounded-full text-xs font-semibold">Medio</span>
+            </div>
+            <div class="border-t border-slate-100 pt-3 space-y-2 text-sm">
+              <div class="flex justify-between"><span class="text-slate-500">Edad</span><span id="rAge" class="font-medium text-slate-700"></span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Sexo</span><span id="rSex" class="font-medium text-slate-700"></span></div>
+              <div class="flex justify-between"><span class="text-slate-500">IMC</span><span id="rBmi" class="font-medium text-slate-700"></span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Dependientes</span><span id="rChildren" class="font-medium text-slate-700"></span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Fumador</span><span id="rSmoker" class="font-medium text-slate-700"></span></div>
+              <div class="flex justify-between"><span class="text-slate-500">Región</span><span id="rRegion" class="font-medium text-slate-700"></span></div>
+            </div>
+            <button id="downloadPdfBtn" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 px-4 rounded-xl transition-all text-sm flex items-center justify-center gap-2">
+              <i class="fas fa-file-pdf text-red-500"></i> Descargar Factura PDF
+            </button>
+          </div>
+        </div>
+
+        <div id="loadingCard" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 hidden">
+          <div class="flex flex-col items-center gap-3">
+            <div class="animate-spin rounded-full h-10 w-10 border-4 border-teal-100 border-t-teal-600"></div>
+            <p class="text-sm text-slate-500 font-medium">Analizando perfil del paciente...</p>
+          </div>
+        </div>
+
+        <div id="errorCard" class="bg-white rounded-2xl shadow-sm border border-red-200 overflow-hidden hidden">
+          <div class="bg-red-50 px-6 py-4 flex items-start gap-3">
+            <i class="fas fa-circle-exclamation text-red-500 mt-0.5"></i>
+            <div>
+              <p class="text-sm font-semibold text-red-800">Error en la predicción</p>
+              <p id="errorMessage" class="text-sm text-red-600"></p>
+            </div>
+          </div>
+        </div>
+
+        <div id="historyCard" class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h3 class="text-sm font-semibold text-slate-700 flex items-center gap-2">
+              <i class="fas fa-clock-rotate-left text-slate-400"></i> Historial
+            </h3>
+            <button id="clearHistoryBtn" class="text-xs text-slate-400 hover:text-red-500 transition-colors" title="Limpiar historial">
+              <i class="fas fa-trash-can"></i>
+            </button>
+          </div>
+          <div id="historyList" class="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+            <div class="px-6 py-8 text-center text-sm text-slate-400">
+              <i class="fas fa-inbox text-2xl mb-2 block text-slate-300"></i>
+              Sin predicciones aún
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="bg-white border-t border-slate-200 mt-12">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 text-sm">
+        <div>
+          <div class="flex items-center gap-2 mb-3">
+            <div class="w-8 h-8 bg-teal-100 rounded-lg flex items-center justify-center text-teal-700 text-sm">
+              <i class="fas fa-heart-pulse"></i>
+            </div>
+            <span class="font-semibold text-slate-700">MediCare Plus</span>
+          </div>
+          <p class="text-slate-400 leading-relaxed">Predicción inteligente de costos médicos mediante machine learning para una cobertura justa y personalizada.</p>
+        </div>
+        <div>
+          <h4 class="font-semibold text-slate-700 mb-3">Enlaces</h4>
+          <ul class="space-y-2">
+            <li>
+              <a href="https://github.com/MHAlberto/MedicalCostPrediction" target="_blank" rel="noopener noreferrer"
+                 class="text-slate-400 hover:text-teal-600 transition-colors flex items-center gap-2">
+                <i class="fab fa-github"></i> Repositorio
+              </a>
+            </li>
+            <li>
+              <a href="https://github.com/MHAlberto" target="_blank" rel="noopener noreferrer"
+                 class="text-slate-400 hover:text-teal-600 transition-colors flex items-center gap-2">
+                <i class="fas fa-user"></i> M.H. Alberto
+              </a>
+            </li>
+            <li>
+              <a href="https://www.kaggle.com/mirichoi0218/insurance" target="_blank" rel="noopener noreferrer"
+                 class="text-slate-400 hover:text-teal-600 transition-colors flex items-center gap-2">
+                <i class="fas fa-database"></i> Dataset
+              </a>
+            </li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-semibold text-slate-700 mb-3">Modelo</h4>
+          <ul class="space-y-2 text-slate-400">
+            <li class="flex items-center gap-2"><i class="fas fa-chart-line text-teal-500"></i> Regresión Lineal</li>
+            <li class="flex items-center gap-2"><i class="fas fa-cubes text-teal-500"></i> R²: 0.77</li>
+            <li class="flex items-center gap-2"><i class="fas fa-code text-teal-500"></i> Python + FastAPI</li>
+          </ul>
+        </div>
+      </div>
+      <div class="border-t border-slate-100 mt-6 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <p class="text-xs text-slate-400 flex items-center gap-1.5">
+          Hecho con <i class="fas fa-heart text-red-400"></i> por
+          <a href="https://github.com/MHAlberto" target="_blank" rel="noopener noreferrer" class="text-teal-600 hover:text-teal-700 font-medium transition-colors">M.H. Alberto</a>
+        </p>
+        <p class="text-xs text-slate-400">
+          &copy; 2026 MediCare Plus &mdash; Todos los derechos reservados
+        </p>
+      </div>
+    </div>
+  </footer>
+
+  <div id="invoiceContent">
+    <div id="invoiceInner" style="font-family: Arial, sans-serif; width: 210mm; min-height: 297mm; padding: 0; margin: 0; background: #fff;">
+      <div style="padding: 40px 40px 20px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="width: 50%;">
+              <div style="background: #0d9488; color: white; padding: 12px 16px; border-radius: 12px; display: inline-block;">
+                <span style="font-size: 14px; opacity: 0.8;">MediCare Plus</span><br>
+                <span style="font-size: 20px; font-weight: bold;">Factura Médica</span>
+              </div>
+            </td>
+            <td style="width: 50%; text-align: right;">
+              <div style="font-size: 12px; color: #64748b;">
+                <div style="font-weight: 600; font-size: 14px; color: #0f172a;">MediCare Plus S.A.</div>
+                <div>123 Health Avenue, Suite 400</div>
+                <div>New York, NY 10001</div>
+                <div>contact@medicareplus.com</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="padding: 0 40px;">
+        <div style="border-top: 2px solid #0d9488; margin: 0;"></div>
+      </div>
+
+      <div style="padding: 30px 40px;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="width: 50%;">
+              <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">FACTURADO A</div>
+              <div style="font-size: 15px; font-weight: 600; color: #0f172a;" id="pdfPatientName">Paciente</div>
+              <div style="font-size: 12px; color: #475569;" id="pdfPatientInfo">Información del paciente</div>
+            </td>
+            <td style="width: 50%; text-align: right;">
+              <table style="margin-left: auto; font-size: 12px; color: #475569; border-collapse: collapse;">
+                <tr><td style="padding: 2px 8px 2px 0; color: #64748b;">Factura N°</td><td id="pdfInvoiceNum" style="font-weight: 600;">MC-2026-0001</td></tr>
+                <tr><td style="padding: 2px 8px 2px 0; color: #64748b;">Fecha</td><td id="pdfDate">2026/01/01</td></tr>
+                <tr><td style="padding: 2px 8px 2px 0; color: #64748b;">Válido hasta</td><td id="pdfValidUntil">2027/01/01</td></tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="padding: 0 40px;">
+        <table style="width: 100%; border-collapse: collapse; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; font-size: 13px;">
+          <thead>
+            <tr style="background: #f1f5f9;">
+              <th style="text-align: left; padding: 12px 16px; color: #475569; font-weight: 600;">Concepto</th>
+              <th style="text-align: left; padding: 12px 16px; color: #475569; font-weight: 600;">Detalle</th>
+              <th style="text-align: right; padding: 12px 16px; color: #475569; font-weight: 600;">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top: 1px solid #e2e8f0;">
+              <td style="padding: 12px 16px; font-weight: 500;">Prima Anual Estimada</td>
+              <td id="pdfDescRow" style="padding: 12px 16px; color: #64748b;">Cobertura médica integral</td>
+              <td id="pdfAmount" style="padding: 12px 16px; text-align: right; font-weight: 600; color: #0f172a;">$0.00</td>
+            </tr>
+            <tr style="border-top: 1px solid #e2e8f0;">
+              <td style="padding: 12px 16px; font-weight: 500;">Cargos Administrativos</td>
+              <td style="padding: 12px 16px; color: #64748b;">Gestión de póliza</td>
+              <td style="padding: 12px 16px; text-align: right; color: #64748b;">$0.00</td>
+            </tr>
+            <tr style="border-top: 1px solid #e2e8f0;">
+              <td style="padding: 12px 16px; font-weight: 500;">Impuesto (3%)</td>
+              <td style="padding: 12px 16px; color: #64748b;">IVA sobre prima</td>
+              <td id="pdfTax" style="padding: 12px 16px; text-align: right; color: #64748b;">$0.00</td>
+            </tr>
+            <tr style="border-top: 2px solid #0d9488;">
+              <td style="padding: 14px 16px; font-weight: 700; font-size: 15px; color: #0f172a;" colspan="2">TOTAL ANUAL</td>
+              <td id="pdfTotal" style="padding: 14px 16px; text-align: right; font-weight: 700; font-size: 18px; color: #0d9488;">$0.00</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="padding: 20px 40px;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px; color: #94a3b8;">
+          <tr>
+            <td style="width: 50%;">
+              <div style="font-weight: 600; color: #64748b; margin-bottom: 4px;">Perfil del Asegurado</div>
+              <div id="pdfProfile">Edad: 35 | Sexo: Masculino | IMC: 28.5 | Dependientes: 0 | Fumador: No | Región: Southwest</div>
+            </td>
+            <td style="width: 50%; text-align: right;">
+              <div style="font-weight: 600; color: #64748b; margin-bottom: 4px;">Nivel de Riesgo</div>
+              <div id="pdfRisk" style="font-size: 13px; font-weight: 700;">Medio</div>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="padding: 0 40px;">
+        <div style="border-top: 1px solid #e2e8f0; padding-top: 16px;">
+          <p style="font-size: 10px; color: #94a3b8; text-align: center; line-height: 1.6;">
+            Esta factura es una estimación generada por un modelo de machine learning con fines informativos.<br>
+            Los montos pueden variar según la evaluación final de suscripción. R² del modelo: 0.77.<br>
+            MediCare Plus S.A. &mdash; Generado el <span id="pdfGeneratedAt">2026/01/01</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://127.0.0.1:5000/predict';
+    const HISTORY_KEY = 'medicalcost_history';
+    let lastPrediction = null;
+
+    function loadHistory() {
+      try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; } catch { return []; }
+    }
+
+    function saveHistory(history) {
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    }
+
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      const history = loadHistory();
+      if (history.length === 0) {
+        list.innerHTML = '<div class="px-6 py-8 text-center text-sm text-slate-400"><i class="fas fa-inbox text-2xl mb-2 block text-slate-300"></i>Sin predicciones aún</div>';
+        return;
+      }
+      list.innerHTML = history.slice().reverse().map(h => `
+        <div class="px-6 py-3 flex items-center justify-between hover:bg-slate-50 transition-colors">
+          <div>
+            <p class="text-sm font-semibold text-slate-700">$${Number(h.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            <p class="text-xs text-slate-400">${h.date} &middot; ${h.details}</p>
+          </div>
+          <span class="text-xs font-medium px-2 py-0.5 rounded-full ${h.amount > 30000 ? 'bg-red-50 text-red-600' : h.amount > 15000 ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'}">${h.amount > 30000 ? 'Alto' : h.amount > 15000 ? 'Medio' : 'Bajo'}</span>
+        </div>
+      `).join('');
+    }
+
+    function getRiskLevel(amount) {
+      if (amount > 30000) return { label: 'Alto', class: 'bg-red-50 text-red-700 border border-red-200' };
+      if (amount > 15000) return { label: 'Medio', class: 'bg-amber-50 text-amber-700 border border-amber-200' };
+      return { label: 'Bajo', class: 'bg-emerald-50 text-emerald-700 border border-emerald-200' };
+    }
+
+    function generatePDF(data, formData) {
+      const now = new Date();
+      const validUntil = new Date(now);
+      validUntil.setFullYear(validUntil.getFullYear() + 1);
+
+      document.getElementById('pdfPatientName').textContent = `Paciente #${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
+      document.getElementById('pdfPatientInfo').textContent = `${formData.age} años · ${formData.sex === 'male' ? 'Masculino' : 'Femenino'} · Región ${formData.region.charAt(0).toUpperCase() + formData.region.slice(1)}`;
+      document.getElementById('pdfInvoiceNum').textContent = `MC-${now.getFullYear()}-${String(Math.floor(Math.random() * 9999)).padStart(4, '0')}`;
+      document.getElementById('pdfDate').textContent = now.toLocaleDateString('es-ES');
+      document.getElementById('pdfValidUntil').textContent = validUntil.toLocaleDateString('es-ES');
+
+      const desc = `${formData.age} años, IMC ${formData.bmi}${formData.smoker === 'yes' ? ', fumador' : ''}`;
+      document.getElementById('pdfDescRow').textContent = desc;
+
+      const formatted = data.predicted_charges.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      document.getElementById('pdfAmount').textContent = `$${formatted}`;
+
+      const tax = data.predicted_charges * 0.03;
+      const total = data.predicted_charges + tax;
+      document.getElementById('pdfTax').textContent = `$${tax.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+      document.getElementById('pdfTotal').textContent = `$${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+      document.getElementById('pdfProfile').textContent =
+        `Edad: ${formData.age} | Sexo: ${formData.sex === 'male' ? 'Masculino' : 'Femenino'} | IMC: ${formData.bmi} | Dependientes: ${formData.children} | Fumador: ${formData.smoker === 'yes' ? 'Sí' : 'No'} | Región: ${formData.region.charAt(0).toUpperCase() + formData.region.slice(1)}`;
+
+      const risk = getRiskLevel(data.predicted_charges);
+      document.getElementById('pdfRisk').textContent = risk.label;
+      document.getElementById('pdfRisk').style.color = risk.label === 'Alto' ? '#dc2626' : risk.label === 'Medio' ? '#d97706' : '#16a34a';
+
+      document.getElementById('pdfGeneratedAt').textContent =
+        now.toLocaleDateString('es-ES') + ' a las ' + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+      const element = document.getElementById('invoiceInner');
+      const opt = {
+        margin:       0,
+        filename:     `MediCarePlus_Factura_${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2, logging: false, useCORS: true },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+      html2pdf().set(opt).from(element).save();
+    }
+
+    document.getElementById('predictionForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const resultCard = document.getElementById('resultCard');
+      const loadingCard = document.getElementById('loadingCard');
+      const errorCard = document.getElementById('errorCard');
+      const predictedAmount = document.getElementById('predictedAmount');
+      const errorMessage = document.getElementById('errorMessage');
+      const riskBadge = document.getElementById('riskBadge');
+
+      resultCard.classList.add('hidden');
+      errorCard.classList.add('hidden');
+      loadingCard.classList.remove('hidden');
+
+      const formData = {
+        age: parseInt(document.getElementById('age').value),
+        sex: document.getElementById('sex').value,
+        bmi: parseFloat(document.getElementById('bmi').value),
+        children: parseInt(document.getElementById('children').value),
+        smoker: document.getElementById('smoker').value,
+        region: document.getElementById('region').value
+      };
+
+      try {
+        await new Promise(r => setTimeout(r, 500));
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail ? (typeof err.detail === 'string' ? err.detail : err.detail[0]?.msg || 'Error en la predicción') : err.error || 'Error en la predicción');
+        }
+
+        const data = await response.json();
+
+        predictedAmount.textContent = '$' + data.predicted_charges.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const risk = getRiskLevel(data.predicted_charges);
+        riskBadge.textContent = risk.label;
+        riskBadge.className = 'px-3 py-1 rounded-full text-xs font-semibold ' + risk.class;
+
+        document.getElementById('rAge').textContent = formData.age;
+        document.getElementById('rSex').textContent = formData.sex === 'male' ? 'Masculino' : 'Femenino';
+        document.getElementById('rBmi').textContent = formData.bmi;
+        document.getElementById('rChildren').textContent = formData.children;
+        document.getElementById('rSmoker').textContent = formData.smoker === 'yes' ? 'Sí' : 'No';
+        document.getElementById('rRegion').textContent = formData.region.charAt(0).toUpperCase() + formData.region.slice(1);
+
+        lastPrediction = { data, formData };
+        resultCard.classList.remove('hidden');
+
+        const history = loadHistory();
+        const now = new Date();
+        history.push({
+          amount: data.predicted_charges,
+          date: now.toLocaleDateString('es-ES') + ' ' + now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+          details: `${formData.age} años · ${formData.bmi} IMC · ${formData.smoker === 'yes' ? 'Fumador' : 'No fumador'}`
+        });
+        if (history.length > 20) history.splice(0, history.length - 20);
+        saveHistory(history);
+        renderHistory();
+      } catch (err) {
+        errorMessage.textContent = err.message;
+        errorCard.classList.remove('hidden');
+      } finally {
+        loadingCard.classList.add('hidden');
+      }
+    });
+
+    document.getElementById('downloadPdfBtn').addEventListener('click', () => {
+      if (lastPrediction) {
+        generatePDF(lastPrediction.data, lastPrediction.formData);
+      }
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      document.getElementById('predictionForm').reset();
+      document.getElementById('resultCard').classList.add('hidden');
+      document.getElementById('errorCard').classList.add('hidden');
+      lastPrediction = null;
+    });
+
+    document.getElementById('clearHistoryBtn').addEventListener('click', () => {
+      if (confirm('¿Limpiar historial de predicciones?')) {
+        saveHistory([]);
+        renderHistory();
+      }
+    });
+
+    renderHistory();
+  </script>
+</body>
+</html>
